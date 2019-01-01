@@ -1,14 +1,14 @@
 package main
 
 import (
-	"os"
 	"bytes"
-	"log"
-	"fmt"
-	"sync"
-	"net/http"
-	"io/ioutil"
 	"database/sql"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"sync"
 )
 
 import "github.com/robfig/cron"
@@ -24,9 +24,9 @@ func blockForever() {
 func loadEnvVariables() {
 	err := godotenv.Load()
 
-  if err != nil {
-    log.Fatal("Error loading .env file", err)
-  }
+	if err != nil {
+		log.Fatal("Error loading .env file", err)
+	}
 }
 
 func getDataSourceName() string {
@@ -53,9 +53,48 @@ func startDailyCron() {
 	c.Start()
 }
 
+func getNextTip(db *sql.DB) (string, string) {
+	var command string
+	var description string
+
+	err := db.QueryRow(`
+		SELECT command, description
+		FROM tips
+		WHERE posted = 0
+		ORDER BY `+"`"+`index`+"`"+`
+		LIMIT 1;
+	`).Scan(&command, &description)
+
+	if err != nil {
+		log.Fatal("Failed to retrieve the next tip from database", err)
+	}
+
+	return command, description
+}
+
+func markTipAsPosted(db *sql.DB, command string) {
+	_, err := db.Exec(`
+		UPDATE tips
+		SET posted = 1
+		WHERE command = "` + command + `";
+	`)
+
+	if err != nil {
+		log.Fatal("Failed to mark the tip as posted", err)
+	}
+}
+
+func formatDailyMessage(command string, description string) string {
+	return fmt.Sprintf("*%s*\n\n%s", command, description)
+}
+
 func postDailyMessage(db *sql.DB) {
-	var jsonBody = []byte(`{"text": "Hello from Go!"}`)
-	req, err := http.NewRequest("POST", os.Getenv("SLACK_WEBHOOK_URL"), bytes.NewBuffer(jsonBody))
+	command, description := getNextTip(db)
+	dailyMessage := formatDailyMessage(command, description)
+	var jsonString = fmt.Sprintf(`{"text": "%s"}`, dailyMessage)
+	var jsonBytes = []byte(jsonString)
+
+	req, err := http.NewRequest("POST", os.Getenv("SLACK_WEBHOOK_URL"), bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		fmt.Println("An error happened while creating the request", err)
 		return
@@ -78,6 +117,7 @@ func postDailyMessage(db *sql.DB) {
 		return
 	}
 
+	markTipAsPosted(db, command)
 	fmt.Println(string(body[:]))
 }
 
