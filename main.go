@@ -1,11 +1,19 @@
 package main
 
+import (
+	"os"
+	"bytes"
+	"log"
+	"fmt"
+	"sync"
+	"net/http"
+	"io/ioutil"
+	"database/sql"
+)
+
 import "github.com/robfig/cron"
-import "bytes"
-import "fmt"
-import "sync"
-import "net/http"
-import "io/ioutil"
+import _ "github.com/go-sql-driver/mysql"
+import "github.com/joho/godotenv"
 
 var internalWebhookUrl string = "https://hooks.slack.com/services/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"
 
@@ -15,13 +23,39 @@ func blockForever() {
 	wg.Wait()
 }
 
+func loadEnvVariables() {
+	err := godotenv.Load()
+
+  if err != nil {
+    log.Fatal("Error loading .env file", err)
+  }
+}
+
+func getDataSourceName() string {
+	return fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+	)
+}
+
 func startDailyCron() {
+	dsn := getDataSourceName()
+	db, err := sql.Open("mysql", dsn)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	c := cron.New()
-	c.AddFunc("@every 2s", postDailyMessage)
+	c.AddFunc("@every 2s", func() { postDailyMessage(db) })
 	c.Start()
 }
 
-func postDailyMessage() {
+func postDailyMessage(db *sql.DB) {
 	var jsonBody = []byte(`{"text": "Hello from Go!"}`)
 	req, err := http.NewRequest("POST", internalWebhookUrl, bytes.NewBuffer(jsonBody))
 	if err != nil {
@@ -50,6 +84,7 @@ func postDailyMessage() {
 }
 
 func main() {
+	loadEnvVariables()
 	startDailyCron()
 	blockForever()
 }
