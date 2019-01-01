@@ -49,7 +49,7 @@ func startDailyCron() {
 	}
 
 	c := cron.New()
-	c.AddFunc("@every 2s", func() { postDailyMessage(db) })
+	c.AddFunc(os.Getenv("CRON_EXPRESSION"), func() { postDailyMessage(db) })
 	c.Start()
 }
 
