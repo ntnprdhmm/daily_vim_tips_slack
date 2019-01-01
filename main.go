@@ -15,8 +15,6 @@ import "github.com/robfig/cron"
 import _ "github.com/go-sql-driver/mysql"
 import "github.com/joho/godotenv"
 
-var internalWebhookUrl string = "https://hooks.slack.com/services/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"
-
 func blockForever() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -57,7 +55,7 @@ func startDailyCron() {
 
 func postDailyMessage(db *sql.DB) {
 	var jsonBody = []byte(`{"text": "Hello from Go!"}`)
-	req, err := http.NewRequest("POST", internalWebhookUrl, bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", os.Getenv("SLACK_WEBHOOK_URL"), bytes.NewBuffer(jsonBody))
 	if err != nil {
 		fmt.Println("An error happened while creating the request", err)
 		return
