@@ -15,6 +15,8 @@ import "github.com/robfig/cron"
 import _ "github.com/go-sql-driver/mysql"
 import "github.com/joho/godotenv"
 
+var intro string = ":jul: wesh alors :jul:\nSors ton IDE, ton iterm\nJ'suis dans l'code en claquettes\nDans l'carré *VIM* en survêt'\nViens pas me prendre la tête\n"
+
 func blockForever() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -91,14 +93,10 @@ func markTipAsPosted(db *sql.DB, command string) {
 	}
 }
 
-func formatDailyMessage(command string, description string) string {
-	return fmt.Sprintf("*%s*\n\n%s", command, description)
-}
-
 func postDailyMessage(db *sql.DB) {
 	command, description := getNextTip(db)
-	dailyMessage := formatDailyMessage(command, description)
-	var jsonString = fmt.Sprintf(`{"text": "%s"}`, dailyMessage)
+
+	var jsonString = fmt.Sprintf(`{"text": "%s", "attachments": [{ "title": "%s", "text": "%s", "mrkdwn_in": [ "text" ] }] }`, intro, command, description)
 	var jsonBytes = []byte(jsonString)
 
 	req, err := http.NewRequest("POST", os.Getenv("SLACK_WEBHOOK_URL"), bytes.NewBuffer(jsonBytes))
