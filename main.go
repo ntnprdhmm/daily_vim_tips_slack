@@ -48,6 +48,13 @@ func startDailyCron() {
 		log.Fatal(err)
 	}
 
+	err = db.Ping()
+	if err != nil {
+		log.Fatal("Failed to connect to database", err)
+	}
+
+	fmt.Println("Connected to the database")
+
 	c := cron.New()
 	c.AddFunc(os.Getenv("CRON_EXPRESSION"), func() { postDailyMessage(db) })
 	c.Start()
